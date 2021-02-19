@@ -1,6 +1,7 @@
 <%@ page language="java" contentType="text/html; charset=UTF-8"
     pageEncoding="UTF-8"%>
 <%@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c" %>
+<%@ taglib uri="http://java.sun.com/jsp/jstl/fmt" prefix="fmt" %>
 <!-- 관리자단 헤더 시작 header.jsp -->
 <!DOCTYPE html>
 <html lang="ko">
@@ -29,6 +30,11 @@
   <link rel="stylesheet" href="<c:url value='/' />resources/plugins/daterangepicker/daterangepicker.css">
   <!-- summernote -->
   <link rel="stylesheet" href="<c:url value='/' />resources/plugins/summernote/summernote-bs4.min.css">
+<script>
+if("${msg}"!="") {
+	alert("${msg}가(이) 성공했습니다.");
+}
+</script>
 </head>
 <body class="hold-transition sidebar-mini layout-fixed">
 <div class="wrapper">
