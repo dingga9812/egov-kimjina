@@ -47,7 +47,7 @@
                 <hr>
                 <strong><i class="fas fa-pencil-alt mr-1"></i> 작성자</strong>
                 <p class="text-muted">
-                ${result.ntcrId}
+                ${result.frstRegisterNm}
                 </p>
                 <c:if test="${not empty result.atchFileId}">
 	                <hr>
@@ -86,6 +86,8 @@
 	<input type="hidden" name="sortOrdr" value="<c:out value='${result.sortOrdr}'/>" >
 	<input type="hidden" name="replyLc" value="<c:out value='${result.replyLc}'/>" >
 	<input type="hidden" name="nttSj" value="<c:out value='${result.nttSj}'/>" >
+	<input type="hidden" name=atchFileId value="${result.atchFileId}">
+	<input type="hidden" name=fileSn value="0">
 </form>
 <script>
 $(document).ready(function(){
@@ -100,7 +102,9 @@ $(document).ready(function(){
 		}	
 	});
 	$("#btn_update").on("click",function(){
-		alert("준비중 입니다.");
+		//alert("준비중 입니다.");
+		action_form.attr("action","<c:url value='/admin/board/update_board_form.do' />");
+		action_form.submit();
 	});
 });
 </script>
