@@ -110,6 +110,6 @@ public abstract class EgovComAbstractMapper extends EgovAbstractMapper {
 		// 그룹코드는 키로 이름은 밸류로 맵자료형으로 반환하는 sqlSession템플릿 사용(아래)
 		return getSqlSession().selectMap(queryId, mapKey);
 	}
-
+	
 	
 }

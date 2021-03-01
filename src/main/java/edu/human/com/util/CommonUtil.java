@@ -42,7 +42,7 @@ public class CommonUtil {
         ret = ret.replaceAll("</(F|f)(O|o)(R|r)(M|m)", "&lt;form");
         return ret;
     }
-
+    
 	@RequestMapping(value="/idcheck.do",method=RequestMethod.GET)
 	@ResponseBody //반환값으로 페이지를 명시하지않고, text라고 명시
 	public String idcheck(@RequestParam("emplyr_id") String emplyr_id) throws Exception {
