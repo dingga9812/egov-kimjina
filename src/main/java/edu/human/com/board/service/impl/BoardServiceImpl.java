@@ -5,9 +5,11 @@ import javax.inject.Inject;
 import org.springframework.stereotype.Service;
 
 import edu.human.com.board.service.BoardService;
+//전자정부 인증받기위해서 아래 클래스 임포트
+import egovframework.rte.fdl.cmmn.EgovAbstractServiceImpl;
 
 @Service
-public class BoardServiceImpl implements BoardService {
+public class BoardServiceImpl extends EgovAbstractServiceImpl implements BoardService {
 
 	@Inject
 	private BoardDAO boardDAO;//같은 패키지안에 있으면, import가 필요 없음.

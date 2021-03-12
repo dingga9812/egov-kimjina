@@ -1,28 +1,38 @@
 package edu.human.com.home.web;
 
+import java.io.BufferedInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.FileInputStream;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
 import javax.inject.Inject;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
+import org.springframework.ui.Model;
 import org.springframework.ui.ModelMap;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.support.SessionStatus;
 import org.springframework.web.context.request.RequestAttributes;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.multipart.MultipartHttpServletRequest;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
-import org.springmodules.validation.bean.BeanValidator;
 import org.springmodules.validation.commons.DefaultBeanValidator;
 
 import edu.human.com.board.service.BoardService;
+import edu.human.com.member.service.EmployerInfoVO;
+import edu.human.com.member.service.MemberService;
 import edu.human.com.util.CommonUtil;
+import edu.human.com.util.PageVO;
 import egovframework.com.cmm.EgovMessageSource;
 import egovframework.com.cmm.LoginVO;
 import egovframework.com.cmm.service.EgovFileMngService;
@@ -35,6 +45,7 @@ import egovframework.let.cop.bbs.service.BoardMasterVO;
 import egovframework.let.cop.bbs.service.BoardVO;
 import egovframework.let.cop.bbs.service.EgovBBSAttributeManageService;
 import egovframework.let.cop.bbs.service.EgovBBSManageService;
+import egovframework.let.utl.sim.service.EgovFileScrty;
 import egovframework.rte.fdl.property.EgovPropertyService;
 import egovframework.rte.ptl.mvc.tags.ui.pagination.PaginationInfo;
 
@@ -55,11 +66,95 @@ public class HomeController {
 	private EgovFileMngUtil fileUtil;
 	@Autowired
 	private EgovFileMngService fileMngService;
-	
+		
 	@Inject
 	private CommonUtil commUtil;
 	@Inject
 	private BoardService boardService;
+	@Inject
+	private MemberService memberService;
+	
+	@RequestMapping("/tiles/member/mypage_form.do")
+	public String mypage_form(HttpServletRequest request, Model model) throws Exception {
+		//회원 보기[수정] 페이지 이동.
+		LoginVO sessionloginVO = (LoginVO) request.getSession().getAttribute("LoginVO");
+		EmployerInfoVO memberVO = memberService.viewMember(sessionloginVO.getId());
+		model.addAttribute("memberVO", memberVO);
+		//공통코드 로그인활성/비활성 해시맵 오브젝트 생성(아래)
+		//System.out.println("디버그:" + memberService.selectCodeMap("COM999"));
+		//맵결과: 디버그:{P={CODE=P, CODE_NM=활성}, S={CODE=S, CODE_NM=비활성}}
+		model.addAttribute("codeMap", memberService.selectCodeMap("COM999"));
+		//그룹이름 해시맵 오브젝트 생성(아래)
+		model.addAttribute("codeGroup", memberService.selectGroupMap()); 
+		
+		return "member/mypage.tiles";
+	}
+	@RequestMapping("/tiles/join.do")
+	public String join(EmployerInfoVO memberVO,RedirectAttributes rdat) throws Exception {
+		//입력DB처리 호출: 1.암호를 egov암호화툴로 암호, 2.ESNTL_ID 고유ID(게시판관리자ID) 생성
+		String formPassword = memberVO.getPASSWORD();//jsp입력폼에서 전송된 암호값GET
+		String encPassword = EgovFileScrty.encryptPassword(formPassword, memberVO.getEMPLYR_ID());
+		memberVO.setPASSWORD(encPassword);//egov암호화툴로 암호화된 값SET
+		memberVO.setESNTL_ID("USRCNFRM_" + memberVO.getEMPLYR_ID());//고유ID값 SET
+		memberService.insertMember(memberVO);
+		rdat.addFlashAttribute("msg", "회원가입");
+		return "redirect:/tiles/home.do";
+	}
+	@RequestMapping("/tiles/join_form.do")
+	public String join_form() throws Exception {
+		return "join.tiles";
+	}
+	
+	@RequestMapping("/tiles/board/previewImage.do")
+	public void previewImage(HttpServletRequest request, HttpServletResponse response, @RequestParam("atchFileId") String atchFileId) throws Exception {
+		FileVO fileVO = new FileVO();
+		fileVO.setAtchFileId(atchFileId);
+		for(int cnt=0;cnt<3;cnt++) {
+			fileVO.setFileSn(Integer.toString(cnt));
+			fileVO = fileMngService.selectFileInf(fileVO);
+			if(fileVO != null) {
+				break;
+			}
+		}
+		File file = null;
+		//첨부파일 확장자가 이미지가 아닐때, 엑박이미지 대신 대체 이미지 지정
+		String[] imgCheck = {"jpg","jpeg","gif","png"};
+		boolean boolCheck = Arrays.asList(imgCheck).contains(fileVO.getFileExtsn().toLowerCase());
+		if(boolCheck == false) { //첨부파일이 이미지 가 아니라면.
+			//위에서 구한 첨부파일 저장위치, 저장파일명을 가지고, 화면에 뿌려짐-스트리밍(아래)
+			String path = request.getServletContext().getRealPath("/resources/home/img");
+			System.out.println("디버그_경로2" + path);
+			file = new File(path + "/no_image.png");
+		} else {
+			//위에서 구한 첨부파일 저장위치, 저장파일명을 가지고, 화면에 뿌려짐-스트리밍(아래) 
+			file = new File(fileVO.getFileStreCours(),fileVO.getStreFileNm());
+		}
+		//스트리밍에 필요한 클래스 변수(오브젝트객체) 생성(아래 3가지)
+		FileInputStream fis = new FileInputStream(file);//저장된파일을 스트림클래스를 이용해서 읽어들임
+		BufferedInputStream bis = new BufferedInputStream(fis);//fis인풋스트림을 받아서 버퍼에 저장
+		ByteArrayOutputStream baos = new ByteArrayOutputStream();
+		int imgByte;//while반복문의 반복조건에 사용될 변수
+		while( (imgByte=bis.read()) != -1 ) {
+			baos.write(imgByte);
+		}
+		//여기까지가 출력버퍼 baos객체에 이미지내용을 임시저장한 상태
+		
+		String type = "";//type변수 초기화
+		if(fileVO.getFileExtsn() !=null && !"".equals(fileVO.getFileExtsn()) ) {
+			//첨부파일 확장이름 존재하면, 이미지파일을 체크함(아래)
+			if("jpg".equals(fileVO.getFileExtsn().toLowerCase())) {
+				type = "image/jpeg";//jpg != jpeg 이름이 틀려서
+			} else {
+				type = "imge/" + fileVO.getFileExtsn().toLowerCase();
+			}
+		}
+		//브라우저에서 출력하는 response응답코드(아래)
+		response.setHeader("Content-Type", type);
+		response.setContentLength(baos.size());
+		baos.writeTo(response.getOutputStream());//실제출력전송
+		response.getOutputStream().flush();//실제화면출력됨
+		response.getOutputStream().close();//응답객체종료하기
+	}
 	
 	@RequestMapping("/tiles/board/update_board.do")
 	public String update_board(RedirectAttributes rdat,final MultipartHttpServletRequest multiRequest, @ModelAttribute("searchVO") BoardVO boardVO,

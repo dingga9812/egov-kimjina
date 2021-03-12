@@ -20,7 +20,6 @@
 <script src="<c:url value='/' />resources/home/js/rollmain.js"></script>
 <!-- //슬라이드용 --> 
 <style>
-
 </style>
 <script>
 if("${msg}" != "") {
@@ -46,19 +45,22 @@ if("${msg}" != "") {
 					<li><a href="<c:url value='/cmm/main/mainPage.do' />">OLD전자정부사이트</a></li>
 					<c:if test="${LoginVO.id eq null || LoginVO.id eq ''}">
 						<li><a href="<c:url value='/tiles/login.do' />">로그인</a></li>
+						<li><a href="<c:url value='/tiles/join_form.do' />">회원가입</a></li>
 					</c:if>
 					<c:if test="${LoginVO.id ne null}">
 						<!-- 로그인 후 보이는 메뉴(아래) -->
-						<li><a href="#">${LoginVO.name} 님 환영합니다.</a></li>
+						<li><a href="<c:url value='/tiles/member/mypage_form.do' />" title="마이페이지">
+						${LoginVO.name} 님 환영합니다.
+						</a></li>
 						<li><a href="<c:url value='/logout.do'/>">로그아웃</a></li>
 						<li><a href="<c:url value='/admin/home.do' />">AdminLTE</a></li>
 					</c:if>
 				</ul>	
 				<nav>
 				<ul class="gnb clear">
-					<li><a href="<c:url value='/'/>tiles/board/list_board.do?bbsId=BBSMSTR_AAAAAAAAAAAA" class="openAll1">공지사항</a>
+					<li><a href="<c:url value='/' />tiles/board/list_board.do?bbsId=BBSMSTR_AAAAAAAAAAAA" class="openAll1">공지사항</a>
 					</li>
-					<li><a href="<c:url value='/'/>tiles/board/list_board.do?bbsId=BBSMSTR_BBBBBBBBBBBB" class="openAll2">갤러리</a>
+					<li><a href="<c:url value='/' />tiles/board/list_board.do?bbsId=BBSMSTR_BBBBBBBBBBBB" class="openAll2">겔러리</a>
 					</li>
 				</ul>
                 </nav>
