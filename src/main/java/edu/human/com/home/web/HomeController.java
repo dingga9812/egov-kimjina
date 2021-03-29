@@ -12,6 +12,8 @@ import javax.inject.Inject;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import org.apache.commons.logging.impl.SimpleLog;
+import org.apache.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -52,6 +54,7 @@ import egovframework.rte.ptl.mvc.tags.ui.pagination.PaginationInfo;
 @Controller
 public class HomeController {
 	
+	private Logger logger = Logger.getLogger(SimpleLog.class);
 	@Autowired //자바8버전 나오기전 많이사용 자바8이후 @Inject로 사용 아주예전 @Resource
 	private EgovBBSAttributeManageService bbsAttrbService;
 	@Autowired
@@ -74,21 +77,49 @@ public class HomeController {
 	@Inject
 	private MemberService memberService;
 	
+	@RequestMapping("/tiles/member/mypage_delete.do")
+	public String mypage_delete(HttpServletRequest request,EmployerInfoVO memberVO,RedirectAttributes rdat) throws Exception {
+		//회원 수정 페이지 DB처리
+		if(memberVO.getPASSWORD() != null && !"".equals(memberVO.getPASSWORD())) {
+			String formPassword = memberVO.getPASSWORD();//GET
+			String encPassword = EgovFileScrty.encryptPassword(formPassword, memberVO.getEMPLYR_ID());
+			memberVO.setPASSWORD(encPassword);//SET
+		}
+		memberVO.setEMPLYR_STTUS_CODE("S");//회원비활성화로 변경
+		memberService.updateMember(memberVO);
+		rdat.addFlashAttribute("msg", "회원탈퇴");
+		//현재 URL의 모든세션을 날립니다.
+		request.getSession().invalidate();//LoginVO세션값이 현재 URL의 모든세션 날림.
+		return "redirect:/tiles/home.do";
+	}
+	@RequestMapping("/tiles/member/mypage.do")
+	public String mypage(EmployerInfoVO memberVO,RedirectAttributes rdat) throws Exception {
+		//회원 수정 페이지 DB처리
+		if(memberVO.getPASSWORD() != null && !"".equals(memberVO.getPASSWORD())) {
+			String formPassword = memberVO.getPASSWORD();//GET
+			String encPassword = EgovFileScrty.encryptPassword(formPassword, memberVO.getEMPLYR_ID());
+			memberVO.setPASSWORD(encPassword);//SET
+		}
+		memberService.updateMember(memberVO);
+		rdat.addFlashAttribute("msg", "수정");//아래 view_member.jsp로 변수 msg값을 전송합니다.
+		return "redirect:/tiles/member/mypage_form.do";
+	}
 	@RequestMapping("/tiles/member/mypage_form.do")
 	public String mypage_form(HttpServletRequest request, Model model) throws Exception {
 		//회원 보기[수정] 페이지 이동.
-		LoginVO sessionloginVO = (LoginVO) request.getSession().getAttribute("LoginVO");
-		EmployerInfoVO memberVO = memberService.viewMember(sessionloginVO.getId());
+		LoginVO sessionLoginVO = (LoginVO) request.getSession().getAttribute("LoginVO");
+		EmployerInfoVO memberVO = memberService.viewMember(sessionLoginVO.getId());
 		model.addAttribute("memberVO", memberVO);
 		//공통코드 로그인활성/비활성 해시맵 오브젝트 생성(아래)
 		//System.out.println("디버그:" + memberService.selectCodeMap("COM999"));
 		//맵결과: 디버그:{P={CODE=P, CODE_NM=활성}, S={CODE=S, CODE_NM=비활성}}
 		model.addAttribute("codeMap", memberService.selectCodeMap("COM999"));
 		//그룹이름 해시맵 오브젝트 생성(아래)
-		model.addAttribute("codeGroup", memberService.selectGroupMap()); 
-		
+		model.addAttribute("codeGroup", memberService.selectGroupMap());
+			
 		return "member/mypage.tiles";
 	}
+	
 	@RequestMapping("/tiles/join.do")
 	public String join(EmployerInfoVO memberVO,RedirectAttributes rdat) throws Exception {
 		//입력DB처리 호출: 1.암호를 egov암호화툴로 암호, 2.ESNTL_ID 고유ID(게시판관리자ID) 생성
@@ -102,6 +133,8 @@ public class HomeController {
 	}
 	@RequestMapping("/tiles/join_form.do")
 	public String join_form() throws Exception {
+		String encPassword = EgovFileScrty.encryptPassword("1234", "user");
+		System.out.println("user/1234 의 암호화: " + encPassword);
 		return "join.tiles";
 	}
 	
@@ -240,6 +273,7 @@ public class HomeController {
 		}
 
 		LoginVO user = (LoginVO)EgovUserDetailsHelper.getAuthenticatedUser();
+		
 		Boolean isAuthenticated = EgovUserDetailsHelper.isAuthenticated();
 
 		boardVO.setFrstRegisterId(user.getUniqId());
@@ -256,8 +290,10 @@ public class HomeController {
 		if (isAuthenticated) {
 		    bmvo = bbsAttrbService.selectBBSMasterInf(master);
 		    bdvo = bbsMngService.selectBoardArticle(boardVO);
+		    logger.debug("디버그: 인증받은 사용자정보를 저장한 객체에서 "+user.getUniqId());
+		    logger.debug("디버그: bdvo객체에서 게시판의 등록자 아이디를 구하기 "+bdvo.getFrstRegisterId());
 		}
-
+		
 		model.addAttribute("result", bdvo);//게시물 정보 오브젝트(게시물제목,내용,첨부파일id...)
 		model.addAttribute("bdMstr", bmvo);//게시판 정보 오브젝트(게시판명,게시판id...)
 
@@ -268,6 +304,12 @@ public class HomeController {
 		    bmvo.setTmplatCours("/css/egovframework/cop/bbs/egovBaseTemplate.css");
 		}
 		model.addAttribute("brdMstrVO", bmvo);//위에서 정의한 bdMstr 모델과 같음.2사람이상이 만들어서 나오는현상
+		
+		if(user.getUniqId() != bdvo.getFrstRegisterId()) {
+			model.addAttribute("msg", "본인이 작성한 글만 수정이 가능합니다.\\n이전 페이지로 이동");
+			return "board/view_board.tiles";
+		}
+		
 		////-----------------------------
 		return "board/update_board.tiles";
 	}
@@ -508,8 +550,9 @@ public class HomeController {
 	}
 	
 	@RequestMapping("/logout.do")
-	public String logout() throws Exception {
-		RequestContextHolder.getRequestAttributes().removeAttribute("LoginVO", RequestAttributes.SCOPE_SESSION);
+	public String logout(HttpServletRequest request) throws Exception {
+		//RequestContextHolder.getRequestAttributes().removeAttribute("LoginVO", RequestAttributes.SCOPE_SESSION);
+		request.getSession().invalidate();//LoginVO세션값이 현재 URL의 모든세션(ROLE_ADMIN세션포) 날림.
 		return "redirect:/";
 	}
 	//method.RequestMethod=GET[POST] 없이사용하면, 둘다 허용되는 매핑이됨
